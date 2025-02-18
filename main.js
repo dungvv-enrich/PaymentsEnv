@@ -49,7 +49,7 @@ const GPAY_BUTTON_CONTAINER_ID = "gpay-container"
 // Get your merchant Id at https://goo.gle/3Cg8KxJ
 const merchantInfo = {
   merchantId: "BCR2DN4T77JMJTI6",
-  merchantName: "New Dzung",
+  merchantName: "Viet Dzung",
 }
 
 /**
@@ -81,9 +81,10 @@ const baseGooglePayRequest = {
       tokenizationSpecification: {
         type: "PAYMENT_GATEWAY",
         parameters: {
-          gateway: "example",
-          gatewayMerchantId: "exampleGatewayMerchantId",
+          gateway: "paypal",
+          gatewayMerchantId: "6FJHXNDE82BEA",
         },
+        // cong thanh toan
       },
     },
   ],
@@ -121,7 +122,7 @@ function getGooglePaymentsClient() {
     paymentsClient = new google.payments.api.PaymentsClient({
       // Set the environment for the client ('TEST' or 'PRODUCTION').
       // `TEST` is default.
-      environment: "TEST",
+      environment: "PRODUCTION",
       // Add the merchant information (optional)
       merchantInfo,
     })
@@ -239,12 +240,14 @@ function onGooglePaymentButtonClicked() {
     // If the payment is successful, process the payment
     .then(function (res) {
       // show returned data for debugging
-      console.log(res)
+      console.log("test", res)
       // @todo pass payment token to your gateway to process payment
       // @note DO NOT save the payment credentials for future transactions,
       // unless they're used for merchant-initiated transactions with user
       // consent in place.
+      alert("Thanh toán Google Pay thành công!")
       paymentToken = res.paymentMethodData.tokenizationData.token
+      console.log({ paymentToken })
     })
     // If there is an error, log it to the console.
     .catch(console.error)
