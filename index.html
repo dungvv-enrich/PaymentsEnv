@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Pay API for Web</title>
+  </head>
+
+  <body>
+    <div id="gpay-container"></div>
+    <div id="apple-pay-container"></div>
+
+    <script type="text/javascript" src="main.js"></script>
+    <script
+      async
+      src="https://pay.google.com/gp/p/js/pay.js"
+      onload="onGooglePayLoaded()"></script>
+
+    <!-- Apple Pay API -->
+    <script>
+      // Function to detect if the device is an Apple device
+      function isAppleDevice() {
+        return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      }
+
+      // Check if Google Pay is available on this device/browser
+      if (window.google && google.payments && google.payments.api) {
+        const gpayContainer = document.getElementById("gpay-container")
+        const gpayButton = document.createElement("button")
+        gpayButton.textContent = "Pay with Google Pay"
+        gpayButton.id = "gpay-button"
+        gpayContainer.appendChild(gpayButton)
+
+        // Set up Google Pay Button click handler
+        gpayButton.addEventListener("click", function () {
+          const googlePayClient = new google.payments.api.PaymentsClient({
+            environment: "TEST", // Use 'PRODUCTION' for production
+          })
+
+          const paymentRequest = {
+            apiVersion: 2,
+            apiVersionMinor: 0,
+            allowedPaymentMethods: [
+              {
+                type: "CARD",
+                parameters: {
+                  allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+                  allowedCardNetworks: ["VISA", "MASTERCARD"],
+                },
+                tokenizationSpecification: {
+                  type: "PAYMENT_GATEWAY",
+                  parameters: {
+                    gateway: "example",
+                    gatewayMerchantId: "exampleGatewayMerchantId",
+                  },
+                },
+              },
+            ],
+            transactionInfo: {
+              totalPriceStatus: "FINAL",
+              totalPrice: window.amount,
+              currencyCode: "USD",
+            },
+            merchantInfo: {
+              merchantName: "Example Merchant",
+              merchantId: window.key,
+            },
+          }
+
+          googlePayClient
+            .loadPaymentData(paymentRequest)
+            .then(function (paymentData) {
+              // Process payment here
+              console.log(paymentData)
+            })
+            .catch(function (err) {
+              console.error("Error processing Google Pay:", err)
+            })
+        })
+      } else {
+        console.log("Google Pay is not available.")
+      }
+
+      // Check if Apple Pay is available on this device
+      if (
+        isAppleDevice() &&
+        window.ApplePaySession &&
+        ApplePaySession.canMakePayments()
+      ) {
+        const applePayContainer = document.getElementById("apple-pay-container")
+
+        const applePayButton = document.createElement("button")
+        applePayButton.textContent = "Pay with Apple Pay"
+        applePayButton.id = "apple-pay-button"
+        applePayContainer.appendChild(applePayButton)
+
+        applePayButton.addEventListener("click", function () {
+          const paymentRequest = {
+            countryCode: "US",
+            currencyCode: "USD",
+            total: {
+              label: "Total Amount",
+              amount: window.amount,
+            },
+            supportedNetworks: ["visa", "masterCard", "amex"],
+            merchantCapabilities: ["supports3DS"],
+            requiredShippingContactFields: ["postalAddress"],
+          }
+
+          const session = new ApplePaySession(3, paymentRequest)
+
+          session.onvalidatemerchant = function (event) {
+            // Validate the merchant with your backend
+            fetch("/validate-merchant", {
+              method: "POST",
+              body: JSON.stringify({ validationUrl: event.validationURL }),
+            })
+              .then(response => response.json())
+              .then(data => session.completeMerchantValidation(data))
+          }
+
+          session.onpaymentauthorized = function (event) {
+            // Process the payment with your backend
+            fetch("/process-payment", {
+              method: "POST",
+              body: JSON.stringify({ paymentData: event.payment }),
+            })
+              .then(response => response.json())
+              .then(data => {
+                session.completePayment(ApplePaySession.STATUS_SUCCESS)
+              })
+              .catch(() => {
+                session.completePayment(ApplePaySession.STATUS_FAILURE)
+              })
+          }
+
+          session.begin()
+        })
+      } else {
+        console.log("Apple Pay is not supported on this device or browser.")
+      }
+
+      // Capture URL params
+      const queryString = window.location.search
+      const urlParams = new URLSearchParams(queryString)
+      const amount = urlParams.get("amount")
+      const key = urlParams.get("key")
+      window.amount = amount
+      window.key = key
+
+      console.log({ amount, key })
+    </script>
+  </body>
+</html>
