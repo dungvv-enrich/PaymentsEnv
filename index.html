@@ -38,50 +38,111 @@
       onload="onGooglePayLoaded()"
     ></script> -->
     <script>
-      const queryString = window.location.search;
-      const urlParams = new URLSearchParams(queryString);
-      const amount = urlParams.get('amount');
-      const key = urlParams.get('key');
-      window.amount = amount;
-      window.key = key;
+      const queryString = window.location.search
+      const urlParams = new URLSearchParams(queryString)
+      const amount = urlParams.get("amount")
+      const key = urlParams.get("key")
+      window.amount = amount
+      window.key = key
 
-      console.log({ amount, key });
-
+      console.log({ amount, key })
+      if (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+      ) {
+        console.log("true")
+      }
+      // if (!window.ApplePaySession) {
+      //   alert("Vui lòng mở ứng dụng trên Safari để sử dụng Apple Pay.")
+      //   window.location.href = "https://www.google.com.vn/" // Đường dẫn mở trên Safari
+      // }
       // Khởi tạo Apple Pay
       function onApplePayButtonClicked() {
-        console.log('hello world');
+        console.log("hello world")
 
-        const paymentRequest = {
-          countryCode: 'US',
-          currencyCode: 'USD',
+        // Define ApplePayPaymentRequest
+        const request = {
+          supportedMethods: "https://apple.com/apple-pay",
+          data: 1,
+          version: 14,
+          merchantIdentifier: "merchant.identifier.example",
+          countryCode: "US",
+          currencyCode: "USD",
+          displayName: "MyStore",
+          initiative: "web", // co the su dung app
+          merchantCapabilities: ["supports3DS"],
+          supportedNetworks: ["visa", "masterCard", "amex", "discover"],
           total: {
-            label: 'Your Store',
-            amount: window.amount || '10.00',
+            label: "Demo (Card is not charged)",
+            type: "final",
+            amount: 0.01,
           },
-          supportedNetworks: ['visa', 'masterCard', 'amex'],
-          merchantCapabilities: ['supports3DS'],
-        };
+        }
 
         if (window.ApplePaySession && ApplePaySession.canMakePayments()) {
-          const session = new ApplePaySession(3, paymentRequest);
+          const session = new ApplePaySession(3, request)
+          console.log("da chay den day")
 
           // Add event listeners for the session
-          session.onvalidatemerchant = (event) => {
-            console.log('Validation URL:', event.validationURL);
-            // Call your server to validate the merchant session
-            fetch('/validate-merchant', {
-              method: 'POST',
-              body: JSON.stringify({ validationURL: event.validationURL }),
+          session.onvalidatemerchant = async event => {
+            // Call your own server to request a new merchant session.
+            const merchantSession = await validateMerchant()
+            session.completeMerchantValidation(merchantSession)
+          }
+
+          session.onpaymentmethodselected = event => {
+            // Define ApplePayPaymentMethodUpdate based on the selected payment method.
+            // No updates or errors are needed, pass an empty object.
+            const update = {}
+            session.completePaymentMethodSelection(update)
+          }
+
+          session.onshippingmethodselected = event => {
+            // Define ApplePayShippingMethodUpdate based on the selected shipping method.
+            // No updates or errors are needed, pass an empty object.
+            const update = {}
+            session.completeShippingMethodSelection(update)
+          }
+
+          session.onshippingcontactselected = event => {
+            // Define ApplePayShippingContactUpdate based on the selected shipping contact.
+            const update = {}
+            session.completeShippingContactSelection(update)
+          }
+
+          session.onpaymentauthorized = event => {
+            // Define ApplePayPaymentAuthorizationResult
+            const result = {
+              status: ApplePaySession.STATUS_SUCCESS,
+            }
+            session.completePayment(result)
+          }
+
+          session.oncouponcodechanged = event => {
+            // Define ApplePayCouponCodeUpdate
+            const newTotal = calculateNewTotal(event.couponCode)
+            const newLineItems = calculateNewLineItems(event.couponCode)
+            const newShippingMethods = calculateNewShippingMethods(
+              event.couponCode
+            )
+            const errors = calculateErrors(event.couponCode)
+
+            session.completeCouponCodeChange({
+              newTotal: newTotal,
+              newLineItems: newLineItems,
+              newShippingMethods: newShippingMethods,
+              errors: errors,
             })
-              .then((response) => {
-                console.log('Raw Response:', response); // Kiểm tra phản hồi thô từ server
-                return response.json();
-              })
-              .then((data) => {
-                console.log({ data });
-                session.completeMerchantValidation(data);
-              });
-          };
+          }
+
+          session.oncancel = event => {
+            console.log({ event })
+            // Payment canceled by WebKit
+          }
+
+          session.begin()
+        } else {
+          console.log("ërror")
         }
       }
     </script>
