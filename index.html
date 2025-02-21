@@ -28,11 +28,7 @@
     <!-- <div id="gpay-container"></div> -->
 
     <!-- Apple Pay Button -->
-    <div
-      id="apple-pay-button"
-      onclick="onApplePayButtonClicked()"
-      style="margin-top: 20px"
-    ></div>
+    <div id="apple-pay-button" onclick="onApplePayButtonClicked()"></div>
 
     <!-- <script type="text/javascript" src="main.js"></script> -->
 
@@ -69,9 +65,9 @@
 
         if (window.ApplePaySession && ApplePaySession.canMakePayments()) {
           console.log('true');
+          const session = new ApplePaySession(3, paymentRequest);
+          console.log({ session });
         }
-        // const session = new ApplePaySession(3, paymentRequest);
-        // console.log({ session });
       }
     </script>
   </body>
